@@ -58,6 +58,9 @@ const ensureDirectoryExists = dirPath => {
  * @returns {number} - The next available index value.
  */
 const getNextAuthIndex = () => {
+    if (process.env.AUTH_INDEX_OVERRIDE) {
+        return parseInt(process.env.AUTH_INDEX_OVERRIDE, 10);
+    }
     const projectRoot = path.join(__dirname, "..", "..");
     const directory = path.join(projectRoot, CONFIG_DIR);
 
