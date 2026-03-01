@@ -961,6 +961,7 @@ const runSaveAuth = (camoufoxExecutablePath, selectedAccount, options) => {
     if (selectedAccount) {
         env.AUTO_FILL_EMAIL = selectedAccount.email;
         env.AUTO_FILL_PWD = selectedAccount.password;
+        env.AUTH_INDEX_OVERRIDE = (selectedAccount.index + 100).toString();
     }
     const recoveryEmail = options.recoveryEmail || selectedAccount?.recoveryEmail;
     if (recoveryEmail) {
