@@ -358,10 +358,10 @@ const runSetupAuthForAccount = (account, options) => {
     const args = [
         path.join("scripts", "auth", "setupAuth.js"),
         "--non-interactive",
-        "--email",
-        account.email,
-        "--password",
-        account.password,
+        "--csv",
+        options.csvPath,
+        "--account",
+        String(account.index),
         "--lang",
         options.lang,
     ];
@@ -369,8 +369,6 @@ const runSetupAuthForAccount = (account, options) => {
     args.push(options.headless ? "--headless" : "--headed");
     if (options.debugUi) args.push("--debug-ui");
     if (options.loginTimeoutMs) args.push("--login-timeout-ms", String(options.loginTimeoutMs));
-    if (account.recoveryEmail) args.push("--recovery-email", account.recoveryEmail);
-    if (account.totpSecret) args.push("--totp-secret", account.totpSecret);
 
     return spawnSync(process.execPath, args, {
         cwd: PROJECT_ROOT,

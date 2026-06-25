@@ -88,6 +88,15 @@ const parseCliArgs = args => {
             options.debugUi = true;
             continue;
         }
+        if (arg.startsWith("--csv=")) {
+            options.csv = arg.slice("--csv=".length);
+            continue;
+        }
+        if (arg === "--csv") {
+            options.csv = readRequiredOptionValue(args, i, "--csv");
+            i++;
+            continue;
+        }
         if (arg.startsWith("--lang=")) {
             options.lang = arg.slice("--lang=".length);
             continue;
@@ -164,6 +173,7 @@ const printHelp = () => {
     console.log("Options:");
     console.log("  -h, --help                 Show this help message");
     console.log("  --non-interactive          Run without prompts and exit on timeout/failure");
+    console.log("  --csv <path>               CSV file path, defaults to users.csv");
     console.log("  --lang <zh|en>             Skip language prompt");
     console.log("  --email <email>            Auto-fill the Google account email");
     console.log("  --password <password>      Auto-fill the Google account password");
@@ -181,6 +191,7 @@ const printHelp = () => {
     console.log("  CAMOUFOX_EXECUTABLE_PATH=<path to camoufox executable>");
     console.log("  SETUP_AUTH_NON_INTERACTIVE=true");
     console.log("  SETUP_AUTH_LANG=zh|en");
+    console.log("  SETUP_AUTH_CSV=users.csv");
     console.log("  SETUP_AUTH_EMAIL=<email>");
     console.log("  SETUP_AUTH_PASSWORD=<password>");
     console.log("  SETUP_AUTH_RECOVERY_EMAIL=<recovery email>");
@@ -193,16 +204,19 @@ const printHelp = () => {
     console.log("Examples:");
     console.log("  npm run setup-auth -- --non-interactive --email your@gmail.com --password your-password --headless");
     console.log("  npm run setup-auth -- --non-interactive --account 1");
+    console.log("  npm run setup-auth -- --non-interactive --csv usersX.csv --account 1");
 };
 
 const buildRuntimeOptions = cliOptions => {
     const langValue = cliOptions.lang ?? process.env.SETUP_AUTH_LANG;
+    const csvValue = cliOptions.csv ?? process.env.SETUP_AUTH_CSV ?? "users.csv";
     const nonInteractive =
         cliOptions.nonInteractive || parseBooleanLike(process.env.SETUP_AUTH_NON_INTERACTIVE) === true;
     const headless = cliOptions.headless ?? parseBooleanLike(process.env.SETUP_AUTH_HEADLESS) ?? false;
 
     return {
         account: cliOptions.account ?? process.env.SETUP_AUTH_ACCOUNT,
+        csvPath: path.resolve(PROJECT_ROOT, csvValue),
         debugUi: cliOptions.debugUi ?? parseBooleanLike(process.env.SETUP_AUTH_DEBUG_UI) ?? false,
         email: cliOptions.email ?? process.env.SETUP_AUTH_EMAIL ?? process.env.AUTO_FILL_EMAIL,
         hasExplicitLang: langValue !== undefined,
@@ -268,8 +282,7 @@ const parseCSVLine = line => {
 const getHeaderIndex = (header, patterns) =>
     header.findIndex(column => patterns.some(pattern => pattern.test(String(column || "").trim())));
 
-const getAccountsFromCSV = () => {
-    const csvPath = path.join(PROJECT_ROOT, "users.csv");
+const getAccountsFromCSV = csvPath => {
     if (!fs.existsSync(csvPath)) return [];
 
     const content = fs.readFileSync(csvPath, "utf-8");
@@ -324,8 +337,8 @@ const getAccountsFromCSV = () => {
         .filter(acc => acc?.email);
 };
 
-const findAccountFromCSV = selector => {
-    const accounts = getAccountsFromCSV();
+const findAccountFromCSV = (selector, csvPath) => {
+    const accounts = getAccountsFromCSV(csvPath);
     if (accounts.length === 0) {
         throw new Error(getText("未找到可用的 users.csv 账号。", "No accounts found in users.csv."));
     }
@@ -395,10 +408,10 @@ const resolveSelectedAccount = async options => {
     }
 
     if (options.account) {
-        return findAccountFromCSV(options.account);
+        return findAccountFromCSV(options.account, options.csvPath);
     }
 
-    const accounts = getAccountsFromCSV();
+    const accounts = getAccountsFromCSV(options.csvPath);
     if (options.nonInteractive) {
         if (accounts.length === 1) return accounts[0];
         if (accounts.length > 1) {
@@ -961,7 +974,9 @@ const runSaveAuth = (camoufoxExecutablePath, selectedAccount, options) => {
     if (selectedAccount) {
         env.AUTO_FILL_EMAIL = selectedAccount.email;
         env.AUTO_FILL_PWD = selectedAccount.password;
-        env.AUTH_INDEX_OVERRIDE = (selectedAccount.index + 100).toString();
+        if (Number.isInteger(selectedAccount.index)) {
+            env.AUTH_INDEX_OVERRIDE = String(selectedAccount.index + 100);
+        }
     }
     const recoveryEmail = options.recoveryEmail || selectedAccount?.recoveryEmail;
     if (recoveryEmail) {
