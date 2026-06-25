@@ -241,7 +241,11 @@ const ensureDirectoryExists = dirPath => {
  */
 const getNextAuthIndex = () => {
     if (process.env.AUTH_INDEX_OVERRIDE) {
-        return parseInt(process.env.AUTH_INDEX_OVERRIDE, 10);
+        const override = Number.parseInt(process.env.AUTH_INDEX_OVERRIDE, 10);
+        if (!Number.isInteger(override) || override < 0) {
+            throw new Error("AUTH_INDEX_OVERRIDE must be a non-negative integer.");
+        }
+        return override;
     }
     const projectRoot = path.join(__dirname, "..", "..");
     const directory = path.join(projectRoot, CONFIG_DIR);
